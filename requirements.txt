@@ -1,0 +1,7 @@
+Flask
+Flask-WTF
+Jinja2
+Flask-DebugToolbar
+sqlalchemy
+flask-jwt-extended
+wtforms

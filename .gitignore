@@ -1,0 +1,10 @@
+.vscode
+.idea
+storage
+./project/static/img/*
+./project/applications/exam/ans/*
+./project/applications/exam/sheets/
+*.pyc
+*.tif
+*.png
+*.jpg
