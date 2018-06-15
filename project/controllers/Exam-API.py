@@ -1,7 +1,7 @@
 from project import app
 from project.database import db_session
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, get_current_user
-from flask.ext.classy import FlaskView, route
+from flask_classy import FlaskView, route
 from flask import jsonify, request
 import datetime
 # from project.model.user import User
@@ -16,9 +16,8 @@ class ExamView(FlaskView):
     route_prefix='api'
     
 
-    @route('/add/', methods=['POST'])
     @jwt_required
-    def add(self):
+    def post(self):
         if not request.is_json:
             return jsonify({"msg": "missing json request"}), 400
 
@@ -32,8 +31,6 @@ class ExamView(FlaskView):
         ranks = dict()
         percentage_of_responses_to_questions = dict()
         user_id = get_current_user().id
-        print "user_id"
-        print user_id
         students = list()
         workbooks = list()
         classes = list()
@@ -51,9 +48,28 @@ class ExamView(FlaskView):
             Logger.error(e.message)
             return jsonify(success=False), 400
     
-        
+    @jwt_required
+    def patch(self, id):
+        exam = Exam.query.filter_by(id = id).first()
+        if not request.is_json:
+            return jsonify({"msg": "missing json request"}), 400
+        exam.name = request.json.get('name', exam.name)
+        exam.answers_key = request.json.get('answers_key', exam.answers_key)
+        # exam.date = datetime.datetime.strptime(request.json.get('date', str(exam.date)),'%Y-%m-%d')
+        exam.description = request.json.get('description', exam.description)
+        exam.lessons = request.json.get('lessons', exam.lessons)
+        exam.setting = request.json.get('setting', exam.setting)
 
-
+        try:
+            session = db_session()
+            session.add(exam)
+            session.commit()
+            return jsonify(success=True), 200
+        except Exception as e:
+            session.rollback()
+            Logger.debug("could not update exam")
+            Logger.error(e.message)
+            return jsonify(success=False), 400
 
 
 ExamView.register(app)

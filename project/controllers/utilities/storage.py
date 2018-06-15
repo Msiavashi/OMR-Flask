@@ -38,6 +38,12 @@ class Private_Storage(Storage):
             os.makedirs(path)
         return path
 
+    def get_scanned_sheets_dir_for(self, exam_id):
+        path = os.path.join(self.get_user_private_dir(), str(exam_id) , "scanned_sheets")
+        if not os.path.exists(path):
+            os.makedirs(path)
+        return path
+
 class Public_Storage(Storage):
     pass
 

@@ -2,7 +2,7 @@ import jsonpickle
 from project import app
 from project.database import db_session
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, get_current_user
-from flask.ext.classy import FlaskView, route
+from flask_classy import FlaskView, route
 from flask import jsonify, request
 import datetime
 from project.model.user import User
@@ -70,6 +70,10 @@ class ClassView(FlaskView):
                 student = Student.query.filter_by(id=student_id).first()
                 student.classes.append(the_class)
                 the_class.students.append(student)
+                if the_class.exams:
+                    for exam in the_class.exams:
+                        exam.students.append(student)
+                        session.add(exam)
                 session.add(the_class)
                 session.add(student)
                 session.commit()
@@ -85,11 +89,11 @@ class ClassView(FlaskView):
     @jwt_required
     def add_exams(self, class_id):
         try:
+            session = db_session()
             if not request.is_json:
                 return jsonify({"msg": "missing json request"}), 400
             exams = request.json.get('exams', None)
             the_class = Class.query.filter_by(id=class_id).first()
-            session = db_session()
             for exam_id in exams:
                 exam = Exam.query.filter_by(id=exam_id).first()
                 exam.students += the_class.students

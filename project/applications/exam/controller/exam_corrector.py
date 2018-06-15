@@ -29,7 +29,7 @@ class Corrector:
             elif student_ans == []: return self.answer_status["empty"]
             else: return self.answer_status["wrong"]
         for i in range(1, self.number_of_questions + 1):
-            result[i] = is_correct(student_answers[i], self.exam.answers_key[i])
+            result[i] = is_correct(student_answers[i], self.exam.answers_key[str(i)])
 
         return result
 
@@ -52,14 +52,14 @@ class Corrector:
         def with_negative_point(num_correct_answers, num_wrong_answers, total_question):
             return (((num_correct_answers * 3.0) - (num_wrong_answers)) * 100.0 ) / (total_question * 3.0)
 
-        if self.exam.setting.lessons["negative_point"]: calculator = with_negative_point
-        elif not self.exam.setting.lessons["negative_point"]: calculator = without_negative_point
+        if self.exam.setting["negative_point"]: calculator = with_negative_point
+        elif not self.exam.setting["negative_point"]: calculator = without_negative_point
 
 
-        for lesson_name, lesson_meta in self.exam.setting.lessons.items():
-            range_start, range_end = lesson_meta["range"]
+        for lesson_name, lesson_meta in self.exam.setting['lessons'].items():
+            range_start, range_end = lesson_meta["range"][0], lesson_meta["range"][1]
             correct_answers = len([i for i in evaluated_answers_dic if evaluated_answers_dic[i] and range_start <= i <= range_end])
-            wrong_answers = len([i for i in evaluated_answers_dic if not evaluated_answers_dic[i] and range_start <= i <= range_end])
+            wrong_answers = len([i for i in evaluated_answers_dic if evaluated_answers_dic[i] == False and range_start <= i <= range_end])
             result[lesson_name] = calculator(correct_answers, wrong_answers, range_end - range_start + 1)
 
         return result
@@ -118,15 +118,15 @@ class Corrector:
 
     def calculate_total_balance_for_all(self, workbooks_balances_dic):
         workbooks_total_balances_dic = {}
-        balance = 0
+        total_balance = 0
         total_ratios = 0
-        for lesson in self.exam.setting.lessons:
-            total_ratios += lesson["ratio"]
+        for lesson, lesson_data in self.exam.setting["lessons"].items():
+            total_ratios += lesson_data["ratio"]
 
         for workbook, balances in workbooks_balances_dic.items():
-            for lesson, blaance in balances.items():
-                balance += self.exam.setting.lessons[lesson]["ratio"] * balance
-            workbooks_total_balances_dic[workbook] = balance / total_ratios
+            for lesson, balance in balances.items():
+                total_balance += self.exam.setting["lessons"][lesson]["ratio"] * balance
+            workbooks_total_balances_dic[workbook] = total_balance / total_ratios
 
         return workbooks_total_balances_dic
 
@@ -138,10 +138,11 @@ class Corrector:
             result[workbook] = {}
 
         #evaluation
-        for lesson in self.exam.setting.lessons:
-            workbook_ranks_tuple = sorted(workbooks_balances_dic.items(), key=lambda x: x[1][lesson])   #list of tuples
-            for index, workbook, balance in enumerate(workbook_ranks_tuple):
-                result[workbook][lesson] = index
+        for lesson in self.exam.setting["lessons"]:
+            workbook_ranks_tuple = sorted(workbooks_balances_dic.items(), key=lambda x: x[1][lesson], reverse=True)   #list of tuples
+            for index, workbook_balance_tuple in enumerate(workbook_ranks_tuple):
+                workbook, balance = workbook_balance_tuple
+                result[workbook][lesson] = index + 1
 
         return result
 

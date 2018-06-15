@@ -4,7 +4,7 @@ import os
 from project import app
 from project.database import db_session
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity, get_current_user
-from flask.ext.classy import FlaskView, route
+from flask_classy import FlaskView, route
 from flask import jsonify, request
 import datetime
 from project.model.user import User
@@ -49,8 +49,29 @@ class HolderView(FlaskView):
             Logger.error(e.message)
             return jsonify({"success": False, "msg": e.message}), 400
 
+    @route('/exam/<int:exam_id>/scan/sheets/', methods=['GET'])
+    @jwt_required
+    def scan_sheets(self, exam_id):
+        exam = Exam.query.filter_by(id=exam_id).first()
+        holder = Holder(exam, 340)
+        try:
+            holder.scan_sheets(src_addr=Private_Storage().get_scanned_sheets_dir_for(exam_id), dst_addr="./ans/scanned/", error_addr="./ans/error/", scan_sensitivity=80)
+            return jsonify(success=True), 200
+        except Exception as e:
+            Logger.error(e.message)
+            return jsonify({"success": False, "msg": e.message}), 400
 
-
+    @route('/exam/<int:exam_id>/correction/', methods=['GET'])
+    @jwt_required
+    def exam_correction(self, exam_id):
+        exam = Exam.query.filter_by(id=exam_id).first()
+        holder = Holder(exam, 340)
+        try:
+            holder.run_correction()
+            return jsonify(success=True), 200
+        except Exception as e:
+            Logger.error(e.message)
+            return jsonify({"success": False, "msg": e.message}), 400
 
 
 

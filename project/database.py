@@ -26,6 +26,4 @@ def init_db():
 
     Base.metadata.create_all(bind=engine)
 
-print "initing..."
 init_db()
-print "done"

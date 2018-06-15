@@ -22,15 +22,8 @@ class Holder:
         self.__corrector = Corrector(exam, total_number_of_question)
 
     def generate_all_sheets(self, save_addr, tmp_addr, template_addr):
-        print "save_addr"
-        print save_addr
-        print "tmp_addr"
-        print tmp_addr
-        print "template_addr"
-        print template_addr
         generator = Sheet_Generator(template_addr, tmp_addr, save_addr,110, 20, 6, 750, 170, 720, 120, "arial.ttf", 18, 18,(0, 0, 0))
         try:
-            print self.exam
             for student in self.exam.students:
                 print student
                 generator.generate(student.first_name, student.last_name, student.student_id)
@@ -49,15 +42,17 @@ class Holder:
             Logger.error(e.message)
 
 
-    def _update_presents(self, presents_id):
+    def _update_db(self, presents_id, all_results):
 
         session = db_session()
         try:
             workbooks = session.query(Workbook).filter(Workbook.exam_id == self.exam.id).all()
 
             for workbook in workbooks:
-                if session.query(Student).filter(Student.id == workbook.student_id).first().student_id in presents_id:
+                student_id = session.query(Student).filter(Student.id == workbook.student_id).first().student_id
+                if  student_id in presents_id:
                     workbook.presence = True
+                    workbook.answers = all_results[student_id]
                 else:
                     workbook.presence = False
 
@@ -79,8 +74,8 @@ class Holder:
 
         all_results = {}
 
-        if not os.path.exists(src_addr):
-            os.makedirs(dst_addr)
+        # if not os.path.exists(src_addr):
+        #     os.makedirs(dst_addr)
         if not os.path.exists(error_addr):
             os.makedirs(error_addr)
 
@@ -102,9 +97,7 @@ class Holder:
             except DataExtractionException as data_extraction_error:
                 Logger.error(data_extraction_error.message)
 
-        self._update_presents(presents)
-
-        return all_results
+        return self._update_db(presents, all_results)
 
 
     def update_workbook_with_given_answers(self, workbooks_answers_dic):
@@ -140,11 +133,8 @@ class Holder:
         pass
 
     def run_correction(self):
-        session = db_session()
         #calculate true or false answers
         workbooks_evaluated_answers_dic = self.__corrector.evaluate_answers_for_all()
-
-        session = db_session()
 
         #calculate and write percentages to database
         workbooks_percentages_dic = self.__corrector.calculate_percentage_for_all_students(workbooks_evaluated_answers_dic)
@@ -159,18 +149,22 @@ class Holder:
         workbooks_total_balances_dic = self.__corrector.calculate_total_balance_for_all(workbooks_balances_dic)
 
         #calculate ranks
-        sorted_by_balance_tuple = sorted(workbooks_total_balances_dic.items(), key=operator.itemgetter(1))
+        sorted_by_balance_tuple = sorted(workbooks_total_balances_dic.items(), key=operator.itemgetter(1), reverse=True)
+
+        session = db_session()
 
         #write data to database
         try:
-            for index, workbook, balance in enumerate(sorted_by_balance_tuple):
+            for index, workbook_balance_tuple in enumerate(sorted_by_balance_tuple):
+                workbook_id, balance = workbook_balance_tuple
                 result = {}
+                workbook = session.query(Workbook).filter(Workbook.id==workbook_id).first()
                 workbook.answers = workbooks_evaluated_answers_dic[workbook]
-                result["percentages"] = workbooks_percentages_dic[workbook]
-                result["rank"] = index
+                result["percentages"] = workbooks_percentages_dic[workbook_id]
+                result["rank"] = index + 1
                 result["balance"] = balance
                 result["total_growth"] = None
-                result["lessons_rank"] = workbooks_lessons_ranks_dic[workbook]
+                result["lessons_rank"] = workbooks_lessons_ranks_dic[workbook_id]
                 result["lessons_growth"] = {}
                 workbook.results = result
                 session.add(workbook)
@@ -178,6 +172,7 @@ class Holder:
         except Exception as e:
             Logger.debug("could not write results to database")
             Logger.error(e.message)
+            raise
         finally:
             session.close()
 
